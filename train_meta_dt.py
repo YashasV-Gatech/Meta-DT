@@ -136,11 +136,11 @@ else:
     context_encoder = RNNContextEncoder(state_dim, action_dim, args.context_dim, args.context_hidden_dim).to(device)
     dynamic_decoder = RewardDecoder(state_dim, action_dim, args.context_dim, args.context_hidden_dim).to(device)
 load_path = f'./saves/{args.env_name}/context/{args.data_quality}/horizon{args.context_horizon}/context_models_best.pt'
-context_encoder.load_state_dict(torch.load(load_path)['context_encoder'])
+context_encoder.load_state_dict(torch.load(load_path, weights_only=False)['context_encoder'])
 if ((env_type=='walker')or(env_type=='hopper')):
-    dynamic_decoder.load_state_dict(torch.load(load_path)['state_decoder'])
+    dynamic_decoder.load_state_dict(torch.load(load_path, weights_only=False)['state_decoder'])
 else:
-    dynamic_decoder.load_state_dict(torch.load(load_path)['reward_decoder'])
+    dynamic_decoder.load_state_dict(torch.load(load_path, weights_only=False)['reward_decoder'])
 for name, param in context_encoder.named_parameters():
     param.requires_grad = False 
 for name, param in dynamic_decoder.named_parameters():

@@ -103,7 +103,7 @@ class SAC(object):
         )
    
     def load(self, path):
-        ckp = torch.load(path, map_location=self.device)
+        ckp = torch.load(path, map_location=self.device, weights_only=False)
         self.critic.load_state_dict(ckp['critic'])
         self.critic_target.load_state_dict(ckp['critic'])
         self.policy.load_state_dict(ckp['policy'])

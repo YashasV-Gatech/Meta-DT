@@ -142,7 +142,7 @@ class MACAW(object):
                 print(f'To:\t{archive_path}')
                 
             print(f'Loading parameters from archive: {archive_path}')
-            archive = torch.load(archive_path)
+            archive = torch.load(archive_path, weights_only=False)
             self._value_function.load_state_dict(archive['vf'])
             self._adaptation_policy.load_state_dict(archive['policy'])
             self._value_function_optimizer.load_state_dict(archive['vf_opt'])
@@ -910,7 +910,7 @@ class MACAW(object):
                     archive_path = '/'.join(comps)
                 print(f'Loading behavior policy from path {archive_path}')
                 behavior_policy = deepcopy(behavior_policy)
-                behavior_policy.load_state_dict(torch.load(archive_path)['policy'])
+                behavior_policy.load_state_dict(torch.load(archive_path, weights_only=False)['policy'])
             '''
             if not self._args.online_ft:
                 print('Gathering training task trajectories...')

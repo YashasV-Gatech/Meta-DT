@@ -37,10 +37,34 @@ from transformers.modeling_outputs import (
 from transformers.modeling_utils import (
     Conv1D,
     PreTrainedModel,
-    SequenceSummary,
     find_pruneable_heads_and_indices,
     prune_conv1d_layer,
 )
+try:
+    from transformers.modeling_utils import SequenceSummary
+except ImportError:
+    # SequenceSummary was moved/removed in newer transformers versions
+    # Create a simple replacement
+    class SequenceSummary(nn.Module):
+        def __init__(self, config):
+            super().__init__()
+            self.summary_type = getattr(config, 'summary_type', 'last')
+            if self.summary_type == 'attn':
+                self.summary = nn.Linear(config.hidden_size, 1)
+            elif self.summary_type == 'cls_index':
+                self.summary = nn.Linear(config.hidden_size, config.hidden_size)
+            else:  # 'last' or 'first'
+                self.summary = nn.Identity()
+        
+        def forward(self, hidden_states, cls_index=None):
+            if self.summary_type == 'last':
+                return hidden_states[:, -1]
+            elif self.summary_type == 'first':
+                return hidden_states[:, 0]
+            elif self.summary_type == 'cls_index' and cls_index is not None:
+                return hidden_states[range(hidden_states.shape[0]), cls_index]
+            else:
+                return hidden_states.mean(dim=1)
 from transformers.utils import logging
 from transformers.utils.model_parallel_utils import assert_device_map, get_device_map
 from transformers.models.gpt2.configuration_gpt2 import GPT2Config
@@ -520,7 +544,9 @@ class GPT2Model(GPT2PreTrainedModel):
         self.wte = nn.Embedding(config.vocab_size, config.n_embd)
         # self.wpe = nn.Embedding(config.n_positions, config.n_embd)
         self.drop = nn.Dropout(config.embd_pdrop)
-        self.h = nn.ModuleList([Block(config.n_ctx, config, scale=True) for _ in range(config.n_layer)])
+        # Handle both old (n_ctx) and new (n_positions) transformers versions
+        n_ctx = getattr(config, 'n_ctx', getattr(config, 'n_positions', 1024))
+        self.h = nn.ModuleList([Block(n_ctx, config, scale=True) for _ in range(config.n_layer)])
         self.ln_f = nn.LayerNorm(config.n_embd, eps=config.layer_norm_epsilon)
 
         self.init_weights()
@@ -584,7 +610,6 @@ class GPT2Model(GPT2PreTrainedModel):
 
     @add_start_docstrings_to_model_forward(GPT2_INPUTS_DOCSTRING)
     @add_code_sample_docstrings(
-        tokenizer_class=_TOKENIZER_FOR_DOC,
         checkpoint="gpt2",
         output_type=BaseModelOutputWithPastAndCrossAttentions,
         config_class=_CONFIG_FOR_DOC,
